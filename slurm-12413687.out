@@ -1,0 +1,19 @@
+python test_net.py --dataset pascal_voc --net vgg16 --checksession 1 --checkepoch 1 --checkpoint 10021 --cuda > my_test.txt
+Traceback (most recent call last):
+  File "test_net.py", line 239, in <module>
+    rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes)
+  File "/om/user/xf15/anaconda3/lib/python3.6/site-packages/torch/nn/modules/module.py", line 491, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/om/user/xf15/faster-rcnn/jwyang/lib/model/faster_rcnn/faster_rcnn.py", line 50, in forward
+    rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
+  File "/om/user/xf15/anaconda3/lib/python3.6/site-packages/torch/nn/modules/module.py", line 491, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/om/user/xf15/faster-rcnn/jwyang/lib/model/rpn/rpn.py", line 80, in forward
+    print("shitrpn")
+  File "/om/user/xf15/faster-rcnn/jwyang/lib/model/rpn/rpn.py", line 80, in forward
+    print("shitrpn")
+  File "/om/user/xf15/anaconda3/lib/python3.6/bdb.py", line 48, in trace_dispatch
+    return self.dispatch_line(frame)
+  File "/om/user/xf15/anaconda3/lib/python3.6/bdb.py", line 67, in dispatch_line
+    if self.quitting: raise BdbQuit
+bdb.BdbQuit

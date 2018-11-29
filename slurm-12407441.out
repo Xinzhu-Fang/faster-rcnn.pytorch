@@ -1,0 +1,9 @@
+python demo.py --net vgg16 --dataset pascal_voc --checksession 1 --checkepoch 1 --checkpoint 10021 --cuda --load_dir models > my_demo.txt
+demo.py:219: UserWarning: volatile was removed and now has no effect. Use `with torch.no_grad():` instead.
+  im_data = Variable(im_data, volatile=True)
+demo.py:220: UserWarning: volatile was removed and now has no effect. Use `with torch.no_grad():` instead.
+  im_info = Variable(im_info, volatile=True)
+demo.py:221: UserWarning: volatile was removed and now has no effect. Use `with torch.no_grad():` instead.
+  num_boxes = Variable(num_boxes, volatile=True)
+demo.py:222: UserWarning: volatile was removed and now has no effect. Use `with torch.no_grad():` instead.
+  gt_boxes = Variable(gt_boxes, volatile=True)

@@ -1,0 +1,8 @@
+python demo.py --net vgg16 --checksession 1 --checkepoch 1 --checkpoint 10021 --cuda --load_dir models/vgg16/pascal_voc -> my_demo.txt
+usage: demo.py [-h] [--dataset DATASET] [--cfg CFG_FILE] [--net NET]
+               [--set ...] [--load_dir LOAD_DIR] [--image_dir IMAGE_DIR]
+               [--cuda] [--mGPUs] [--cag] [--parallel_type PARALLEL_TYPE]
+               [--checksession CHECKSESSION] [--checkepoch CHECKEPOCH]
+               [--checkpoint CHECKPOINT] [--bs BATCH_SIZE] [--vis]
+               [--webcam_num WEBCAM_NUM]
+demo.py: error: unrecognized arguments: -

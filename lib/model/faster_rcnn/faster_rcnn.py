@@ -49,6 +49,8 @@ class _fasterRCNN(nn.Module):
         # feed base feature map tp RPN to obtain rois
         rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
 
+        import pdb; pdb.set_trace()
+        print("shitrcnn")
         # if it is training phrase, then use ground trubut bboxes for refining
         if self.training:
             roi_data = self.RCNN_proposal_target(rois, gt_boxes, num_boxes)
@@ -106,6 +108,13 @@ class _fasterRCNN(nn.Module):
 
             # bounding box regression L1 loss
             RCNN_loss_bbox = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws)
+            
+            # added by Cindy based on https://github.com/jwyang/faster-rcnn.pytorch/issues/226
+            rpn_loss_cls = torch.unsqueeze(rpn_loss_cls, 0)
+            rpn_loss_bbox = torch.unsqueeze(rpn_loss_bbox, 0)
+            RCNN_loss_cls = torch.unsqueeze(RCNN_loss_cls, 0)
+            RCNN_loss_bbox = torch.unsqueeze(RCNN_loss_bbox, 0)
+            
 
 
         cls_prob = cls_prob.view(batch_size, rois.size(1), -1)
