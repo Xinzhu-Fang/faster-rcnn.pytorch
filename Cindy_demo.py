@@ -145,33 +145,7 @@ def _get_image_blob(im):
     return blob, np.array(im_scale_factors)
 
 
-def bb_intersection_over_union(boxA, boxB):
-    # determine the (x, y)-coordinates of the intersection rectangle
-    xA = max(boxA[0], boxB[0])
-    yA = max(boxA[1], boxB[1])
-    xB = min(boxA[2], boxB[2])
-    yB = min(boxA[3], boxB[3])
 
-    if xB - xA < 0:
-        return 0
-    if yB - yA < 0:
-        return 0
-
-    # compute the area of intersection rectangle
-    interArea = (xB - xA) * (yB - yA)
-
-    # compute the area of both the prediction and ground-truth
-    # rectangles
-    boxAArea = (boxA[2] - boxA[0]) * (boxA[3] - boxA[1])
-    boxBArea = (boxB[2] - boxB[0]) * (boxB[3] - boxB[1])
-
-    # compute the intersection over union by taking the intersection
-    # area and dividing it by the sum of prediction + ground-truth
-    # areas - the interesection area
-    iou = interArea / float(boxAArea + boxBArea - interArea)
-
-    # return the intersection over union value
-    return iou
 
 
 if __name__ == '__main__':
@@ -309,21 +283,19 @@ if __name__ == '__main__':
         cap = cv2.VideoCapture(webcam_num)
         num_images = 0
     else:
-        args.image_sub_dir = 'circles'  #  'gratings'  #  
+        args.image_sub_dir = 'gratings'  # 'circles'  #   
         dfImages_file = os.path.join(args.image_dir, 'df_' + args.image_sub_dir + '.csv')
         dfImages = pd.read_csv(dfImages_file)
         dfImages_result = dfImages
         num_images = dfImages.shape[0]
+        num_module = 7  # popout_rois.shape[0]
 
         # cfg.pooling
 
     print('Loaded Photo: {} images.'.format(num_images))
-    for iPooling_size in 2**np.arange(3, 8): #8
-        iou_result = np.empty(num_images)
-        image_result_dir = args.image_sub_dir + '_result_poolsize' + str(iPooling_size)
-        if os.path.isdir(os.path.join(args.image_dir, image_result_dir)):
-            shutil.rmtree(os.path.join(args.image_dir, image_result_dir))
-        os.mkdir(os.path.join(args.image_dir, image_result_dir))
+    for iPooling_size in 2**np.arange(3, 4): #8):
+        iou_result = np.empty((num_images, num_module))
+
         for iImage in range(num_images):
             dfImage = dfImages[iImage: iImage + 1]
             total_tic = time.time()
@@ -351,19 +323,18 @@ if __name__ == '__main__':
 
             det_tic = time.time()
 
-            popout_rois = (fasterRCNN(im_data, im_info, gt_boxes, num_boxes, iPooling_size)).cpu().numpy()
-            # pdb.set_trace()
-            gt_box = np.array([dfImage.iloc[0]['target_x'] - dfImage.iloc[0]['item_radius'],
-                               dfImage.iloc[0]['target_y'] - dfImage.iloc[0]['item_radius'],
-                               dfImage.iloc[0]['target_x'] + dfImage.iloc[0]['item_radius'],
-                               dfImage.iloc[0]['target_y'] + dfImage.iloc[0]['item_radius']])
+            #popout_rois = (fasterRCNN(im_data, im_info, gt_boxes, num_boxes, iPooling_size)).cpu().numpy()
+            popout_rois = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, iPooling_size)
+            #pdb.set_trace()
+            gt_box = np.float32(np.array([dfImage.iloc[0]['target_x'] - dfImage.iloc[0]['item_radius'], dfImage.iloc[0]['target_y'] - dfImage.iloc[0]['item_radius'], dfImage.iloc[0]['target_x'] + dfImage.iloc[0]['item_radius'], dfImage.iloc[0]['target_y'] + dfImage.iloc[0]['item_radius']]))
 
-            gt_box = np.float32(np.squeeze(gt_box))
-            iou_result[iImage] = bb_intersection_over_union(popout_rois, gt_box)
+            #gt_box = np.float32(np.squeeze(gt_box))
+            gt_box = np.repeat(gt_box[np.newaxis, :], num_module, axis=0)
+            #pdb.set_trace()
+            iou_result[iImage, :] = bb_iou_multi(popout_rois, gt_box)[:, 0]
             print(iImage)
 
             image = Image.open(im_file)
-            draw = ImageDraw.Draw(image)
             if 'target_color_r' in dfImage.columns:
                 # pdb.set_trace()
 
@@ -371,11 +342,22 @@ if __name__ == '__main__':
                             int(dfImage.iloc[0]['target_color_b']))
             else:
                 bb_color = (255, 255, 255)
-            draw.rectangle(popout_rois, outline=bb_color)
-            im_result_file = os.path.join(args.image_dir, image_result_dir, dfImage.iloc[0]['image_file_name'])
-            image.save(im_result_file)
 
-        dfImages_result['iou_poolsize' + str(iPooling_size)] = iou_result
+            for iM in range(num_module):
+                image_result_dir = args.image_sub_dir + '_result_poolsize' + str(iPooling_size) + '_module' + str(iM)
+                # at the dir level, image is under module, but in code, module is under image. So check module
+                # for the first image
+                if iImage == 0:
+                    if os.path.isdir(os.path.join(args.image_dir, image_result_dir)):
+                        shutil.rmtree(os.path.join(args.image_dir, image_result_dir))
+                    os.mkdir(os.path.join(args.image_dir, image_result_dir))
+                image0 = copy(image)    
+                draw = ImageDraw.Draw(image0)
+                draw.rectangle(popout_rois[iM, :], outline=bb_color)
+                im_result_file = os.path.join(args.image_dir, image_result_dir, dfImage.iloc[0]['image_file_name'])
+                image.save(im_result_file)
+        for iM in range(num_module):
+            dfImages_result['iou_poolsize' + str(iPooling_size) + '_module' + str(iM)] = iou_result[:, iM]
 
     dfImages_result_file = os.path.join(args.image_dir, 'df_' + args.image_sub_dir + '_result.csv')
     dfImages_result.to_csv(dfImages_result_file)

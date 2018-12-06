@@ -10,16 +10,17 @@ import pdb
 import shutil
 
 
+
 class PopoutImages(object):
     def __init__(self):
-        self.num_images = 1 #100
+        self.num_images = 100
         self.on_grid = False # clutter
         self.fixed_size = True # size of each item
         self.num_item = range(3, 9) # 3 to 10
         self.type = [0, 1] # color and grating
         self.dir = 'images'
-        self.image_width = 600
-        self.image_height = 600
+        self.image_width = 512
+        self.image_height = 512
         self.num_unit = 10
         self.unit_width = self.image_width / self.num_unit #60
         self.width_units = math.floor(self.image_width / self.unit_width)
