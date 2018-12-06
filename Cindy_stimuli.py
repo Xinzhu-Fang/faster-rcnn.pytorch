@@ -20,9 +20,10 @@ class PopoutImages(object):
         self.dir = 'images'
         self.image_width = 600
         self.image_height = 600
-        self.grid_step = 60
-        self.width_grid = math.floor(self.image_width / self.grid_step)
-        self.height_grid = math.floor(self.image_height / self.grid_step)
+        self.num_unit = 10
+        self.unit_width = self.image_width / self.num_unit #60
+        self.width_units = math.floor(self.image_width / self.unit_width)
+        self.height_units = math.floor(self.image_height / self.unit_width)
         if os.path.isdir(os.path.join(self.dir)):
             pass
         else:
@@ -32,7 +33,7 @@ class PopoutImages(object):
 class PopoutCircles(PopoutImages):
     def __init__(self):
         PopoutImages.__init__(self)
-        self.item_radius = 20
+        self.item_radius = self.unit_width/3 #20
         self.sub_dir = 'circles'
         self.color_avail = np.array([[0, 0, 0],
                                     [255, 255, 255],
@@ -63,12 +64,12 @@ class PopoutCircles(PopoutImages):
             for iNum in self.num_item:
                 for iImage in range(self.num_images):
                     image_ind += 1
-                    x_positions = np.array(random.sample(range(self.width_grid), iNum)) * self.grid_step + self.grid_step/2
-                    y_positions = np.array(random.sample(range(self.height_grid), iNum)) * self.grid_step + self.grid_step/2
+                    x_positions = np.array(random.sample(range(self.width_units), iNum)) * self.unit_width + self.unit_width/2
+                    y_positions = np.array(random.sample(range(self.height_units), iNum)) * self.unit_width + self.unit_width/2
                     # radius = np.repeat(self.item_radius, iNum)
-                    # radius = np.array(random.sample(range(min_radius * 10, self.grid_step * 10), iNum)) / 10
-                    # target_height = random.randint(0, self.height_grid-1)
-                    # target_width = random.randint(0, self.width_grid-1)
+                    # radius = np.array(random.sample(range(min_radius * 10, self.unit_width * 10), iNum)) / 10
+                    # target_height = random.randint(0, self.height_units-1)
+                    # target_width = random.randint(0, self.width_units-1)
                     target_ind = random.randint(0, iNum-1)
                     all_colors = np.repeat(distractor_color[np.newaxis, :], iNum, axis=0)
                     all_colors[target_ind, :] = target_color
@@ -108,10 +109,10 @@ class PopoutGratings(PopoutImages):
         self.distractor_angles = np.array(range(8)) * (1/8) * math.pi
         self.target_angles = self.distractor_angles + 1/2 * math.pi
         self.grating_color = (200, 200, 200)
-        self.grating_height = 20 #half of the height
-        self.grating_width = 3
-        self.item_radius = math.sqrt(self.grating_height ** 2 + self.grating_width ** 2)
-        self.grating_angle = math.atan(self.grating_width/self.grating_height)
+        self.item_radius = self.unit_width/3 #math.sqrt(self.grating_height ** 2 + self.grating_width ** 2)
+        self.grating_angle = 1/15 * math.pi #math.atan(self.grating_width/self.grating_height)
+        self.grating_height = self.item_radius * math.sin(self.grating_angle) #20 #half of the height
+        self.grating_width = self.item_radius * math.cos(self.grating_angle) #3
         # self.col_names = ['image_file_name', 'item_radius', 'target_x', 'target_y', 'num_item', 'target_angle']
 
     def create(self):
@@ -145,8 +146,8 @@ class PopoutGratings(PopoutImages):
             for iNum in self.num_item:
                 for iImage in range(self.num_images):
                     image_ind += 1
-                    x_positions = np.array(random.sample(range(self.width_grid), iNum)) * self.grid_step + self.grid_step/2
-                    y_positions = np.array(random.sample(range(self.height_grid), iNum)) * self.grid_step + self.grid_step/2
+                    x_positions = np.array(random.sample(range(self.width_units), iNum)) * self.unit_width + self.unit_width/2
+                    y_positions = np.array(random.sample(range(self.height_units), iNum)) * self.unit_width + self.unit_width/2
 
                     target_ind = random.randint(0, iNum-1)
                     all_xs = np.repeat(distractor_xs[np.newaxis, :], iNum, axis=0)

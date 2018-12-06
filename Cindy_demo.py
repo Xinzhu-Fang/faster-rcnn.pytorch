@@ -309,74 +309,78 @@ if __name__ == '__main__':
         cap = cv2.VideoCapture(webcam_num)
         num_images = 0
     else:
-        args.image_sub_dir = 'circles' #'gratings'  # 'circles' #
+        args.image_sub_dir = 'circles'  #  'gratings'  #  
         dfImages_file = os.path.join(args.image_dir, 'df_' + args.image_sub_dir + '.csv')
         dfImages = pd.read_csv(dfImages_file)
         dfImages_result = dfImages
         num_images = dfImages.shape[0]
-        iou_result = np.empty(num_images)
-        image_result_dir = args.image_sub_dir + '_result'
-        if os.path.isdir(os.path.join(args.image_dir, image_result_dir)):
-            shutil.rmtree(os.path.join(args.image_dir, image_result_dir))
-        os.mkdir(os.path.join(args.image_dir, image_result_dir))
+
         # cfg.pooling
 
     print('Loaded Photo: {} images.'.format(num_images))
+    for iPooling_size in 2**np.arange(3, 8): #8
+        iou_result = np.empty(num_images)
+        image_result_dir = args.image_sub_dir + '_result_poolsize' + str(iPooling_size)
+        if os.path.isdir(os.path.join(args.image_dir, image_result_dir)):
+            shutil.rmtree(os.path.join(args.image_dir, image_result_dir))
+        os.mkdir(os.path.join(args.image_dir, image_result_dir))
+        for iImage in range(num_images):
+            dfImage = dfImages[iImage: iImage + 1]
+            total_tic = time.time()
+            im_file = os.path.join(args.image_dir, args.image_sub_dir, dfImage.iloc[0]['image_file_name'])
+            im_in = np.array(imread(im_file))
+            if len(im_in.shape) == 2:
+                im_in = im_in[:, :, np.newaxis]
+                im_in = np.concatenate((im_in, im_in, im_in), axis=2)
+            # rgb -> bgr
+            im = im_in[:, :, ::-1]
 
-    for iImage in range(num_images):
-        dfImage = dfImages[iImage: iImage + 1]
-        total_tic = time.time()
-        im_file = os.path.join(args.image_dir, args.image_sub_dir, dfImage.iloc[0]['image_file_name'])
-        im_in = np.array(imread(im_file))
-        if len(im_in.shape) == 2:
-            im_in = im_in[:, :, np.newaxis]
-            im_in = np.concatenate((im_in, im_in, im_in), axis=2)
-        # rgb -> bgr
-        im = im_in[:, :, ::-1]
+            blobs, im_scales = _get_image_blob(im)
+            assert len(im_scales) == 1, "Only single-image batch implemented"
+            im_blob = blobs
+            im_info_np = np.array([[im_blob.shape[1], im_blob.shape[2], im_scales[0]]], dtype=np.float32)
 
-        blobs, im_scales = _get_image_blob(im)
-        assert len(im_scales) == 1, "Only single-image batch implemented"
-        im_blob = blobs
-        im_info_np = np.array([[im_blob.shape[1], im_blob.shape[2], im_scales[0]]], dtype=np.float32)
+            im_data_pt = torch.from_numpy(im_blob)
+            im_data_pt = im_data_pt.permute(0, 3, 1, 2)
+            im_info_pt = torch.from_numpy(im_info_np)
 
-        im_data_pt = torch.from_numpy(im_blob)
-        im_data_pt = im_data_pt.permute(0, 3, 1, 2)
-        im_info_pt = torch.from_numpy(im_info_np)
+            im_data.data.resize_(im_data_pt.size()).copy_(im_data_pt)
+            im_info.data.resize_(im_info_pt.size()).copy_(im_info_pt)
+            gt_boxes.data.resize_(1, 1, 5).zero_()
+            num_boxes.data.resize_(1).zero_()
 
-        im_data.data.resize_(im_data_pt.size()).copy_(im_data_pt)
-        im_info.data.resize_(im_info_pt.size()).copy_(im_info_pt)
-        gt_boxes.data.resize_(1, 1, 5).zero_()
-        num_boxes.data.resize_(1).zero_()
+            det_tic = time.time()
 
-        det_tic = time.time()
+            popout_rois = (fasterRCNN(im_data, im_info, gt_boxes, num_boxes, iPooling_size)).cpu().numpy()
+            # pdb.set_trace()
+            gt_box = np.array([dfImage.iloc[0]['target_x'] - dfImage.iloc[0]['item_radius'],
+                               dfImage.iloc[0]['target_y'] - dfImage.iloc[0]['item_radius'],
+                               dfImage.iloc[0]['target_x'] + dfImage.iloc[0]['item_radius'],
+                               dfImage.iloc[0]['target_y'] + dfImage.iloc[0]['item_radius']])
 
-        popout_rois = (fasterRCNN(im_data, im_info, gt_boxes, num_boxes)).cpu().numpy()
-        # pdb.set_trace()
-        gt_box = np.array([dfImage.iloc[0]['target_x'] - dfImage.iloc[0]['item_radius'],
-                           dfImage.iloc[0]['target_y'] - dfImage.iloc[0]['item_radius'],
-                           dfImage.iloc[0]['target_x'] + dfImage.iloc[0]['item_radius'],
-                           dfImage.iloc[0]['target_y'] + dfImage.iloc[0]['item_radius']])
+            gt_box = np.float32(np.squeeze(gt_box))
+            iou_result[iImage] = bb_intersection_over_union(popout_rois, gt_box)
+            print(iImage)
 
-        gt_box = np.float32(np.squeeze(gt_box))
-        iou_result[iImage] = bb_intersection_over_union(popout_rois, gt_box)
-        print(iImage)
+            image = Image.open(im_file)
+            draw = ImageDraw.Draw(image)
+            if 'target_color_r' in dfImage.columns:
+                # pdb.set_trace()
 
-        image = Image.open(im_file)
-        draw = ImageDraw.Draw(image)
-        if 'target_color' in dfImage.columns:
-            bb_color = (dfImage.iloc[0]['target_color_r'],dfImage.iloc[0]['target_color_r'],dfImage.iloc[0]['target_color_r'])
-        else:
-            bb_color = (255, 255, 255)
-        draw.rectangle(popout_rois, outline=bb_color)
-        im_result_file = os.path.join(args.image_dir, image_result_dir, dfImage.iloc[0]['image_file_name'])
-        image.save(im_result_file)
+                bb_color = (int(dfImage.iloc[0]['target_color_r']), int(dfImage.iloc[0]['target_color_g']),
+                            int(dfImage.iloc[0]['target_color_b']))
+            else:
+                bb_color = (255, 255, 255)
+            draw.rectangle(popout_rois, outline=bb_color)
+            im_result_file = os.path.join(args.image_dir, image_result_dir, dfImage.iloc[0]['image_file_name'])
+            image.save(im_result_file)
 
-    
-    dfImages_result['iou_result'] = iou_result
+        dfImages_result['iou_poolsize' + str(iPooling_size)] = iou_result
+
     dfImages_result_file = os.path.join(args.image_dir, 'df_' + args.image_sub_dir + '_result.csv')
     dfImages_result.to_csv(dfImages_result_file)
 
-    #pdb.set_trace()
+        # pdb.set_trace()
 
 
 
