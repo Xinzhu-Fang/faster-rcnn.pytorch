@@ -176,6 +176,7 @@ if __name__ == '__main__':
       pascal_classes = np.asarray(['__background__'])
       pascal_classes = np.append(pascal_classes, np.asarray(data))
       pascal_classes = [x.strip('\n') for x in pascal_classes]
+
   print('Called with args:')
   print(args)
 
@@ -185,8 +186,12 @@ if __name__ == '__main__':
     cfg_from_list(args.set_cfgs)
 
   cfg.USE_GPU_NMS = args.cuda
-
-  print('Using config:')
+  cfg.CUDA = True
+  
+    
+  #import pdb; pdb.set_trace()
+  #print("shitdemo")
+  #print('Using config:')
   pprint.pprint(cfg)
   np.random.seed(cfg.RNG_SEED)
 
@@ -248,11 +253,12 @@ if __name__ == '__main__':
     num_boxes = num_boxes.cuda()
     gt_boxes = gt_boxes.cuda()
 
-  # make variable
-  im_data = Variable(im_data, volatile=True)
-  im_info = Variable(im_info, volatile=True)
-  num_boxes = Variable(num_boxes, volatile=True)
-  gt_boxes = Variable(gt_boxes, volatile=True)
+  # make variable changed by Cindy
+  with torch.no_grad():
+      im_data = Variable(im_data)
+      im_info = Variable(im_info)
+      num_boxes = Variable(num_boxes)
+      gt_boxes = Variable(gt_boxes)
 
   if args.cuda > 0:
     cfg.CUDA = True
@@ -261,7 +267,7 @@ if __name__ == '__main__':
     fasterRCNN.cuda()
 
   fasterRCNN.eval()
-
+T
   start = time.time()
   max_per_image = 100
   thresh = 0.05

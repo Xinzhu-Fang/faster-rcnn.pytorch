@@ -16,7 +16,7 @@ import time
 import pdb
 from model.utils.net_utils import _smooth_l1_loss, _crop_pool_layer, _affine_grid_gen, _affine_theta
 #Cindy
-from tweek_rois import tweek_rois
+from Cindy_utils import *
 
 
 class _fasterRCNN(nn.Module):
@@ -33,8 +33,10 @@ class _fasterRCNN(nn.Module):
         # define rpn
         self.RCNN_rpn = _RPN(self.dout_base_model)
         self.RCNN_proposal_target = _ProposalTargetLayer(self.n_classes)
-        self.RCNN_roi_pool = _RoIPooling(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0/16.0)
-        self.RCNN_roi_align = RoIAlignAvg(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0/16.0)
+        self.RCNN_roi_pool = _RoIPooling(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0/4.0)
+        self.RCNN_roi_align = RoIAlignAvg(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0/4.0)
+        #self.RCNN_roi_pool = _RoIPooling(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0/16.0)
+        #self.RCNN_roi_align = RoIAlignAvg(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0/16.0)
 
         self.grid_size = cfg.POOLING_SIZE * 2 if cfg.CROP_RESIZE_WITH_MAX_POOL else cfg.POOLING_SIZE
         self.RCNN_roi_crop = _RoICrop()
@@ -48,14 +50,20 @@ class _fasterRCNN(nn.Module):
 
         # feed image data to base model to obtain base feature map
         base_feat = self.RCNN_base(im_data)
-
+        conv1_feat = self.RCNN_base[3](self.RCNN_base[2](self.RCNN_base[1](self.RCNN_base[0](im_data))))
+        #import pdb; pdb.set_trace()
+        #print("shitrcnn2")
         # feed base feature map tp RPN to obtain rois
         rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
 
         #Cindy
-        rois = tweek_rois(rois)
-        import pdb; pdb.set_trace()
-        print("shitrcnn")
+        #import pdb; pdb.set_trace()
+        #print("shitrcnn")
+        if not self.training:
+            rois = tweek_rois(rois)
+            base_feat = conv1_feat
+        
+
         # if it is training phrase, then use ground trubut bboxes for refining
         if self.training:
             roi_data = self.RCNN_proposal_target(rois, gt_boxes, num_boxes)
@@ -88,14 +96,25 @@ class _fasterRCNN(nn.Module):
             pooled_feat = self.RCNN_roi_align(base_feat, rois.view(-1, 5))
         elif cfg.POOLING_MODE == 'pool':
             pooled_feat = self.RCNN_roi_pool(base_feat, rois.view(-1,5))
+            #pooled_feat = self.RCNN_roi_pool(conv1_feat, rois.view(-1,5))
 
         #import pdb; pdb.set_trace()
         #print("shitrcnn1")
+
+        #import pdb; pdb.set_trace()
+        #print("shitrcnn2")   
+        if not self.training:
+            pooled_feat = pooled_feat.view(pooled_feat.shape[0], -1)
+            popout_index = find_the_popout(pooled_feat)
+            #import pdb; pdb.set_trace()
+            #print("shitrcnn2")            
+            popout_rois = rois[0, popout_index.item(), 1:5]
+
+            return popout_rois
         
         # feed pooled features to top model
         pooled_feat = self._head_to_tail(pooled_feat)
-        import pdb; pdb.set_trace()
-        print("shitrcnn2")
+
         # compute bbox offset
         bbox_pred = self.RCNN_bbox_pred(pooled_feat)
         if self.training and not self.class_agnostic:
