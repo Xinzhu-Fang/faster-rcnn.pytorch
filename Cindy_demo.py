@@ -184,14 +184,19 @@ if __name__ == '__main__':
         args.imdbval_name = "vg_150-50-50_minival"
         print("shitanchor")
         args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '50']
-        with open('data/vg/objects_vocab.txt', 'r') as f:
-            data = f.readlines()
+        if args.net == 'res101':
+            with open('data/vg/objects_vocab_1600.txt', 'r') as f:
+                data = f.readlines()
+        else:
+            with open('data/vg/objects_vocab_2500_fake.txt', 'r') as f:
+                data = f.readlines()
         pascal_classes = np.asarray(['__background__'])
         pascal_classes = np.append(pascal_classes, np.asarray(data))
         pascal_classes = [x.strip('\n') for x in pascal_classes]
 
     print('Called with args:')
     print(args)
+    #pdb.set_trace()
 
     if args.cfg_file is not None:
         cfg_from_file(args.cfg_file)
@@ -201,7 +206,6 @@ if __name__ == '__main__':
     cfg.USE_GPU_NMS = args.cuda
     cfg.CUDA = True
 
-    # import pdb; pdb.set_trace()
     # print("shitdemo")
     # print('Using config:')
     pprint.pprint(cfg)
@@ -324,7 +328,7 @@ if __name__ == '__main__':
             im_info.data.resize_(im_info_pt.size()).copy_(im_info_pt)
             gt_boxes.data.resize_(1, 1, 5).zero_()
             num_boxes.data.resize_(1).zero_()
-            #pdb.set_trace()
+            pdb.set_trace()
 
             det_tic = time.time()
 
