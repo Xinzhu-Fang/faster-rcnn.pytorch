@@ -293,7 +293,7 @@ if __name__ == '__main__':
         # cfg.pooling
 
     print('Loaded Photo: {} images.'.format(num_images))
-    for iPooling_size in 2**np.arange(3, 4): #8):
+    for iPooling_ratio in 2**np.arange(0, 1): #(3, 4): #8):
         iou_result = np.empty((num_images, num_module))
 
         for iImage in range(num_images):
@@ -323,8 +323,8 @@ if __name__ == '__main__':
 
             det_tic = time.time()
 
-            #popout_rois = (fasterRCNN(im_data, im_info, gt_boxes, num_boxes, iPooling_size)).cpu().numpy()
-            popout_rois = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, iPooling_size)
+            #popout_rois = (fasterRCNN(im_data, im_info, gt_boxes, num_boxes, iPooling_ratio)).cpu().numpy()
+            popout_rois = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, iPooling_ratio)
             #pdb.set_trace()
             gt_box = np.float32(np.array([dfImage.iloc[0]['target_x'] - dfImage.iloc[0]['item_radius'], dfImage.iloc[0]['target_y'] - dfImage.iloc[0]['item_radius'], dfImage.iloc[0]['target_x'] + dfImage.iloc[0]['item_radius'], dfImage.iloc[0]['target_y'] + dfImage.iloc[0]['item_radius']]))
 
@@ -344,7 +344,7 @@ if __name__ == '__main__':
                 bb_color = (255, 255, 255)
 
             for iM in range(num_module):
-                image_result_dir = args.image_sub_dir + '_result_poolsize' + str(iPooling_size) + '_module' + str(iM)
+                image_result_dir = args.image_sub_dir + '_result_poolsize' + str(iPooling_ratio) + '_module' + str(iM)
                 # at the dir level, image is under module, but in code, module is under image. So check module
                 # for the first image
                 if iImage == 0:
@@ -357,7 +357,7 @@ if __name__ == '__main__':
                 im_result_file = os.path.join(args.image_dir, image_result_dir, dfImage.iloc[0]['image_file_name'])
                 image.save(im_result_file)
         for iM in range(num_module):
-            dfImages_result['iou_poolsize' + str(iPooling_size) + '_module' + str(iM)] = iou_result[:, iM]
+            dfImages_result['iou_poolsize' + str(iPooling_ratio) + '_module' + str(iM)] = iou_result[:, iM]
 
     dfImages_result_file = os.path.join(args.image_dir, 'df_' + args.image_sub_dir + '_result.csv')
     dfImages_result.to_csv(dfImages_result_file)
