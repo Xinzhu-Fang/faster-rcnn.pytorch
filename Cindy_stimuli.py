@@ -13,7 +13,7 @@ import shutil
 
 class PopoutImages(object):
     def __init__(self):
-        self.num_images = 100
+        self.num_images = 10 # gratings 6*8 cond; circles 6* 60 cond
         self.on_grid = False # clutter
         self.fixed_size = True # size of each item
         self.num_item = range(3, 9) # 3 to 10

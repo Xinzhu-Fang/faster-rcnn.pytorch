@@ -40,7 +40,7 @@ class _fasterRCNN(nn.Module):
         self.grid_size = cfg.POOLING_SIZE * 2 if cfg.CROP_RESIZE_WITH_MAX_POOL else cfg.POOLING_SIZE
         self.RCNN_roi_crop = _RoICrop()
 
-    def forward(self, im_data, im_info, gt_boxes, num_boxes, pooling_ratio):
+    def forward(self, im_data, im_info, gt_boxes, num_boxes, pooling_size):
         batch_size = im_data.size(0)
 
         im_info = im_info.data
@@ -60,7 +60,7 @@ class _fasterRCNN(nn.Module):
             for i, module in enumerate(self.RCNN_base._modules.values()):
                 #print(i)
                 #import pdb; pdb.set_trace()
-                # print("shitrcnn")
+                print("shitrcnn")
                 next_feat = module(prev_feat)
                 features.append(next_feat)
                 prev_feat = next_feat
@@ -68,9 +68,6 @@ class _fasterRCNN(nn.Module):
             popout_rois = np.ndarray((1, 4), dtype="float32")
             for iF in features:
                 base_feat = iF
-                #import pdb; pdb.set_trace()
-                feature_width = iF.size()[2]
-                pooling_size = feature_width/pooling_ratio
                 rois = tweak_rois(rois)
                 self.RCNN_roi_pool = _RoIPooling(pooling_size, pooling_size, 1.0 / 4.0)
                 self.RCNN_roi_align = RoIAlignAvg(pooling_size, pooling_size, 1.0 / 4.0)
@@ -101,7 +98,7 @@ class _fasterRCNN(nn.Module):
                 popout_rois = np.vstack((popout_rois, rois[0, popout_index.item(), 1:5]))
             #import pdb; pdb.set_trace()
             #print("shitrcnn")
-            popout_rois = popout_rois[1:,:]
+            popout_rois = popout_rois[1:,:]        
             return popout_rois
         else:
 
