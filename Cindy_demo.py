@@ -283,7 +283,7 @@ if __name__ == '__main__':
         cap = cv2.VideoCapture(webcam_num)
         num_images = 0
     else:
-        args.image_sub_dir = 'gratings'  # 'circles'  #   
+        args.image_sub_dir = 'circles'  # 'gratings'  # 'circles'  #   
         dfImages_file = os.path.join(args.image_dir, 'df_' + args.image_sub_dir + '.csv')
         dfImages = pd.read_csv(dfImages_file)
         dfImages_result = dfImages
@@ -320,6 +320,7 @@ if __name__ == '__main__':
             im_info.data.resize_(im_info_pt.size()).copy_(im_info_pt)
             gt_boxes.data.resize_(1, 1, 5).zero_()
             num_boxes.data.resize_(1).zero_()
+            #pdb.set_trace()
 
             det_tic = time.time()
 

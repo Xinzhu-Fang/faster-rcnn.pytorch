@@ -68,9 +68,11 @@ class _fasterRCNN(nn.Module):
             popout_rois = np.ndarray((1, 4), dtype="float32")
             for iF in features:
                 base_feat = iF
+                #import pdb; pdb.set_trace()
+                feature_width = base_feat.size()[2]
                 rois = tweak_rois(rois)
-                self.RCNN_roi_pool = _RoIPooling(pooling_size, pooling_size, 1.0 / 4.0)
-                self.RCNN_roi_align = RoIAlignAvg(pooling_size, pooling_size, 1.0 / 4.0)
+                self.RCNN_roi_pool = _RoIPooling(pooling_size, pooling_size, 1.0 / (im_info[0][0]/feature_width))
+                self.RCNN_roi_align = RoIAlignAvg(pooling_size, pooling_size, 1.0 / (im_info[0][0]/feature_width))
 
                     # do roi pooling based on predicted rois
                 if cfg.POOLING_MODE == 'crop':
