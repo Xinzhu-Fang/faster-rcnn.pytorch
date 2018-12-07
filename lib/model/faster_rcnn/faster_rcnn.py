@@ -22,7 +22,7 @@ from Cindy_utils import *
 class _fasterRCNN(nn.Module):
     """ faster RCNN """
 
-    def __init__(self, classes, class_agnostic):
+    def __init__(self, classes, class_agnostic, interested_modules):
         super(_fasterRCNN, self).__init__()
         self.classes = classes
         self.n_classes = len(classes)
@@ -34,11 +34,13 @@ class _fasterRCNN(nn.Module):
         # define rpn
         self.RCNN_rpn = _RPN(self.dout_base_model)
         self.RCNN_proposal_target = _ProposalTargetLayer(self.n_classes)
-        self.RCNN_roi_pool = _RoIPooling(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0/16.0)
-        self.RCNN_roi_align = RoIAlignAvg(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0/16.0)
+        self.RCNN_roi_pool = _RoIPooling(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0 / 16.0)
+        self.RCNN_roi_align = RoIAlignAvg(cfg.POOLING_SIZE, cfg.POOLING_SIZE, 1.0 / 16.0)
 
         self.grid_size = cfg.POOLING_SIZE * 2 if cfg.CROP_RESIZE_WITH_MAX_POOL else cfg.POOLING_SIZE
         self.RCNN_roi_crop = _RoICrop()
+        self.interested_modules = interested_modules
+
 
     def forward(self, im_data, im_info, gt_boxes, num_boxes, pooling_size):
         batch_size = im_data.size(0)
@@ -49,7 +51,8 @@ class _fasterRCNN(nn.Module):
 
         # feed image data to base model to obtain base feature map
         base_feat = self.RCNN_base(im_data)
-        # import pdb; pdb.set_trace()
+
+        #pdb.set_trace()
         # print("shitrcnn2")
         # feed base feature map tp RPN to obtain rois
         rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
@@ -58,23 +61,25 @@ class _fasterRCNN(nn.Module):
             features = []
             prev_feat = im_data
             for i, module in enumerate(self.RCNN_base._modules.values()):
-                #print(i)
-                #import pdb; pdb.set_trace()
-                print("shitrcnn")
+                # print(i)
+                # import pdb; pdb.set_trace()
+                # print("shitrcnn")
                 next_feat = module(prev_feat)
                 features.append(next_feat)
                 prev_feat = next_feat
 
+            features = [features[i] for i in self.interested_modules]
+
             popout_rois = np.ndarray((1, 4), dtype="float32")
             for iF in features:
                 base_feat = iF
-                #import pdb; pdb.set_trace()
+                # import pdb; pdb.set_trace()
                 feature_width = base_feat.size()[2]
                 rois = tweak_rois(rois)
-                self.RCNN_roi_pool = _RoIPooling(pooling_size, pooling_size, 1.0 / (im_info[0][0]/feature_width))
-                self.RCNN_roi_align = RoIAlignAvg(pooling_size, pooling_size, 1.0 / (im_info[0][0]/feature_width))
+                self.RCNN_roi_pool = _RoIPooling(pooling_size, pooling_size, 1.0 / (im_info[0][0] / feature_width))
+                self.RCNN_roi_align = RoIAlignAvg(pooling_size, pooling_size, 1.0 / (im_info[0][0] / feature_width))
 
-                    # do roi pooling based on predicted rois
+                # do roi pooling based on predicted rois
                 if cfg.POOLING_MODE == 'crop':
                     # pdb.set_trace()
                     # pooled_feat_anchor = _crop_pool_layer(base_feat, rois.view(-1, 5))
@@ -95,12 +100,12 @@ class _fasterRCNN(nn.Module):
                 # print("shitrcnn2")
                 pooled_feat = pooled_feat.view(pooled_feat.shape[0], -1)
                 popout_index = find_the_popout(pooled_feat)
-                #import pdb; pdb.set_trace()
+                # import pdb; pdb.set_trace()
                 # print("shitrcnn2")
                 popout_rois = np.vstack((popout_rois, rois[0, popout_index.item(), 1:5]))
-            #import pdb; pdb.set_trace()
-            #print("shitrcnn")
-            popout_rois = popout_rois[1:,:]        
+            # import pdb; pdb.set_trace()
+            # print("shitrcnn")
+            popout_rois = popout_rois[1:, :]
             return popout_rois
         else:
 
@@ -137,7 +142,8 @@ class _fasterRCNN(nn.Module):
                 # select the corresponding columns according to roi labels
                 bbox_pred_view = bbox_pred.view(bbox_pred.size(0), int(bbox_pred.size(1) / 4), 4)
                 bbox_pred_select = torch.gather(bbox_pred_view, 1,
-                                                rois_label.view(rois_label.size(0), 1, 1).expand(rois_label.size(0), 1, 4))
+                                                rois_label.view(rois_label.size(0), 1, 1).expand(rois_label.size(0), 1,
+                                                                                                 4))
                 bbox_pred = bbox_pred_select.squeeze(1)
 
             # compute object classification probability

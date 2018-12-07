@@ -100,6 +100,8 @@ def parse_args():
     parser.add_argument('--webcam_num', dest='webcam_num',
                         help='webcam ID number',
                         default=-1, type=int)
+    parser.add_argument('--stimuli', dest='image_sub_dir',
+                        default='gratings')
 
     args = parser.parse_args()
     return args
@@ -216,9 +218,11 @@ if __name__ == '__main__':
 
     # initilize the network here.
     if args.net == 'vgg16':
-        fasterRCNN = vgg16(pascal_classes, pretrained=False, class_agnostic=args.class_agnostic)
+        interested_modules = [4, 9, 16, 23, 29]
+        fasterRCNN = vgg16(pascal_classes, pretrained=False, class_agnostic=args.class_agnostic, interested_modules=interested_modules)
     elif args.net == 'res101':
-        fasterRCNN = resnet(pascal_classes, 101, pretrained=False, class_agnostic=args.class_agnostic)
+        interested_modules = [3, 4, 5, 6]
+        fasterRCNN = resnet(pascal_classes, 101, pretrained=False, class_agnostic=args.class_agnostic, interested_modules=interested_modules)
     elif args.net == 'res50':
         fasterRCNN = resnet(pascal_classes, 50, pretrained=False, class_agnostic=args.class_agnostic)
     elif args.net == 'res152':
@@ -283,17 +287,17 @@ if __name__ == '__main__':
         cap = cv2.VideoCapture(webcam_num)
         num_images = 0
     else:
-        args.image_sub_dir = 'circles'  # 'gratings'  # 'circles'  #   
+        #args.image_sub_dir = 'circles'  # 'gratings'  # 'circles'  #   
         dfImages_file = os.path.join(args.image_dir, 'df_' + args.image_sub_dir + '.csv')
         dfImages = pd.read_csv(dfImages_file)
         dfImages_result = dfImages
         num_images = dfImages.shape[0]
-        num_module = 7  # popout_rois.shape[0]
+        num_module = len(interested_modules)#7  # popout_rois.shape[0]
 
         # cfg.pooling
 
     print('Loaded Photo: {} images.'.format(num_images))
-    for iPooling_size in 2**np.arange(3, 5): #8):
+    for iPooling_size in 2**np.arange(3, 4): #8):
         iou_result = np.empty((num_images, num_module))
 
         for iImage in range(num_images):
@@ -345,7 +349,7 @@ if __name__ == '__main__':
                 bb_color = (255, 255, 255)
 
             for iM in range(num_module):
-                image_result_dir = args.image_sub_dir + '_result_poolsize' + str(iPooling_size) + '_module' + str(iM)
+                image_result_dir = args.image_sub_dir + '_' + args.net + '_' + args.dataset + '_conv' + str(iM + 1) + '_poolsize' + str(iPooling_size) 
                 # at the dir level, image is under module, but in code, module is under image. So check module
                 # for the first image
                 if iImage == 0:
@@ -356,11 +360,11 @@ if __name__ == '__main__':
                 draw = ImageDraw.Draw(image0)
                 draw.rectangle(popout_rois[iM, :], outline=bb_color)
                 im_result_file = os.path.join(args.image_dir, image_result_dir, dfImage.iloc[0]['image_file_name'])
-                image.save(im_result_file)
+                image0.save(im_result_file)
         for iM in range(num_module):
-            dfImages_result['iou_poolsize' + str(iPooling_size) + '_module' + str(iM)] = iou_result[:, iM]
+            dfImages_result['iou_conv' + str(iM+1) + '_poolsize' + str(iPooling_size)] = iou_result[:, iM]
 
-    dfImages_result_file = os.path.join(args.image_dir, 'df_' + args.image_sub_dir + '_result.csv')
+    dfImages_result_file = os.path.join(args.image_dir, 'df_' + args.image_sub_dir + '_' + args.net + '_' + args.dataset + '.csv')
     dfImages_result.to_csv(dfImages_result_file)
 
         # pdb.set_trace()
