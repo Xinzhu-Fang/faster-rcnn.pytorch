@@ -1,0 +1,8 @@
+python Cindy_demo_gratings.py --net res101 --dataset pascal_voc --checksession 1 --checkepoch 7 --checkpoint 10021 --cuda --stimuli gratings
+python: can't open file 'Cindy_demo_gratings.py': [Errno 2] No such file or directory
+python Cindy_demo_gratings.py --net vgg16 --dataset pascal_voc --checksession 1 --checkepoch 1 --checkpoint 10021 --cuda --stimuli gratings
+python: can't open file 'Cindy_demo_gratings.py': [Errno 2] No such file or directory
+python Cindy_demo_gratings.py --net res101 --dataset vg --checksession 1 --checkepoch 20 --checkpoint 16193 --cuda --stimuli gratings
+python: can't open file 'Cindy_demo_gratings.py': [Errno 2] No such file or directory
+python Cindy_demo_gratings.py --net vgg16 --dataset vg --checksession 1 --checkepoch 19 --checkpoint 48611 --cuda --stimuli gratings
+python: can't open file 'Cindy_demo_gratings.py': [Errno 2] No such file or directory
