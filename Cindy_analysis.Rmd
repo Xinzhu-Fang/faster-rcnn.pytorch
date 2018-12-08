@@ -1,0 +1,233 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r message=FALSE, warning=FALSE, tidy=TRUE, echo = FALSE}
+    library('knitr')
+
+library(ggplot2)
+library(dplyr)
+library(ggthemes)
+library(tidyverse)
+library(reshape2)
+library(tidyr)
+
+
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy = TRUE) 
+```
+
+```{r}
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+```
+
+
+```{r}
+
+plot_results = function(my_file_name, my_iv){
+  df = read.csv(my_file_name)
+  threshold = 0.2
+  df1 = df %>%
+    select(starts_with("iou")) > threshold
+  df2 = data.frame(df1)*100
+  df3 = df2 %>%
+    mutate(iv = df[[my_iv]]) %>%
+    group_by(iv) %>%
+    summarise_all(funs('mean' = mean))
+  df4 = data.frame(t(df3))
+  df5 = df4[-1, ]
+  colnames(df5) = df4[1,]
+  colnames(df5) = sapply(df4[1,], as.character)
+  df5$layer = 1:dim(df1)[2]
+  df6 = melt(df5, id='layer')
+  p = ggplot(df6, aes(layer, value, color=variable)) +
+    geom_line() +
+    ylab("Percentage correct") +
+    ylim(0,100) +
+    xlab("conv_layer") +
+    labs(color= my_iv)
+  return(p)
+}
+
+```
+
+
+```{r}
+my_file_name = 'images/df_circles_vgg16_pascal_voc.csv'
+my_iv = 'color_combo'
+df = read.csv(my_file_name)
+threshold = 0.2
+df01 = df %>%
+  select(contains('color')) #back_distractor_target
+df02 = unite_(df11, my_iv, colnames(df11))
+df = cbind(df02, df)
+df1 = df %>%
+  select(starts_with("iou")) > threshold
+df2 = data.frame(df1)*100
+df3 = df2 %>%
+  mutate(iv = df[[my_iv]]) %>%
+  group_by(iv) %>%
+  summarise_all(funs('mean' = mean))
+df4 = data.frame(t(df3[, -1]))
+colnames(df4) = sapply(df3[, 1], as.character)
+
+
+
+df4$layer = 1:dim(df1)[2]
+df6 = melt(df4, id='layer')
+p = ggplot(df6, aes(layer, value, color=variable)) +
+  geom_line() +
+  ylab("Percentage correct") +
+  ylim(0,100) +
+  xlab("conv_layer") +
+  labs(color= my_iv)
+```
+
+
+
+```{r}
+type = 'gratings' # circles #
+iv = 'target_angle' # 'num_item' # 'color_combo'
+nets = c('vgg16', 'res101')
+datasets = c('pascal_voc', 'vg')
+all_plots = list()
+iP = 1
+for (iN in nets){ # nets will be col
+  for (iD in datasets){ # ds will be row
+    file_name = file.path('images', paste0('df_', type, '_', iN, '_', iD, '.csv'))
+    all_plots[[iP]] = plot_results(file_name, iv)
+    iP = iP + 1
+    # during testing
+    if(iP == 2){
+      break
+    }
+  }
+}
+
+multiplot(plotlist = all_plots, cols=length(nets))
+```
+df2$num_item = df$num_item
+# df2 = cbind(df1, df$num_item)
+
+%>%
+  group_by(num_item) %>%
+  summarise_all(funs('mean' = mean))
+num_item_by_layer_mean = df %>%
+  group_by(num_item) %>%
+  summarise_all(funs('mean' = mean))
+
+num_item_by_layer_mean1 = num_item_by_layer_mean %>%
+  rownames_to_column() #%>%
+  # gather(colnames(, va))t 
+
+```{r}
+
+par(mfrow = c(2, 1))
+p
+p
+```
+
+
+```{r}
+df_gratings = df
+
+View(head(df_gratings))
+library(dplyr)
+                                          
+angles.df <- df_gratings[c("target_angle", "iou_module1_poolsize8", "iou_module2_poolsize8", 
+                           "iou_module3_poolsize8", "iou_module4_poolsize8"
+                           , "iou_module5_poolsize8")]
+
+numitem.df <-  df_gratings[c("num_item", "iou_module1_poolsize8", "iou_module2_poolsize8", 
+                             "iou_module3_poolsize8", "iou_module4_poolsize8"
+                             , "iou_module5_poolsize8")]
+
+
+for(colnum in 2:ncol(numitem.df)){
+  for(rownum in 1:nrow(numitem.df)){
+    if(numitem.df[rownum, colnum] >= .2){
+      numitem.df[rownum, colnum] <- 1
+    } else if(numitem.df[rownum, colnum] < .2){
+      numitem.df[rownum, colnum] <- 0 
+    }
+  }
+}
+
+for(colnum in 2:ncol(angles.df)){
+  for(rownum in 1:nrow(angles.df)){
+    if(angles.df[rownum, colnum] >= .2){
+      angles.df[rownum, colnum] <- 1
+    } else if(angles.df[rownum, colnum] < .2){
+      angles.df[rownum, colnum] <- 0 
+    }
+  }
+}
+
+
+grouped.angles <- angles.df %>% group_by(target_angle)
+
+sumr.angles <- data.frame(summarize(grouped.angles, sum.layer1 = sum(iou_module1_poolsize8), 
+                                                   sum.layer2 = sum(iou_module2_poolsize8),
+                                                   sum.layer3 = sum(iou_module3_poolsize8),
+                                                   sum.layer4 = sum(iou_module4_poolsize8),
+                                                   sum.layer5 = sum(iou_module5_poolsize8)))
+
+grouped.numitems <- numitem.df %>% group_by(num_item)
+sumr.numitems <- data.frame(summarize(grouped.numitems, sum.layer1 = sum(iou_module1_poolsize8), 
+                                                   sum.layer2 = sum(iou_module2_poolsize8),
+                                                   sum.layer3 = sum(iou_module3_poolsize8),
+                                                   sum.layer4 = sum(iou_module4_poolsize8),
+                                                   sum.layer5 = sum(iou_module5_poolsize8)))
+row.names(sumr.angles) <- sumr.angles[,1]
+row.names(sumr.numitems) <- sumr.numitems[,1]
+
+sumr.numitems <- sumr.numitems[order(sumr.numitems$num_item),]
+sumr.angles <- sumr.angles[order(sumr.angles$target_angle),]
+angles.m <- data.matrix(sumr.angles)
+numitem.m <- data.matrix((sumr.numitems))
+]
+
+heatmap.numitems <- heatmap(numitem.m[,2:6], Rowv=NA, Colv=NA, 
+                       col = heat.colors(256), 
+                       scale="column", margins=c(10,5))
+
+heatmap.angles <- heatmap(angles.m[,2:6], Rowv = NA, Colv = NA, 
+                          col = heat.colors(256), 
+                          scale = "column", margins = c(8, 10))
+
+
+```
