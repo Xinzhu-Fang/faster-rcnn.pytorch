@@ -101,7 +101,7 @@ def parse_args():
                         help='webcam ID number',
                         default=-1, type=int)
     parser.add_argument('--stimuli', dest='image_sub_dir',
-                        default='gratings')
+                        default= 'circles') #'gratings') #
 
     args = parser.parse_args()
     return args
@@ -233,7 +233,7 @@ if __name__ == '__main__':
         fasterRCNN = resnet(pascal_classes, 152, pretrained=False, class_agnostic=args.class_agnostic)
     else:
         print("network is not defined")
-        pdb.set_trace()
+        # pdb.set_trace()
 
     fasterRCNN.create_architecture()
 
@@ -328,7 +328,7 @@ if __name__ == '__main__':
             im_info.data.resize_(im_info_pt.size()).copy_(im_info_pt)
             gt_boxes.data.resize_(1, 1, 5).zero_()
             num_boxes.data.resize_(1).zero_()
-            pdb.set_trace()
+            # pdb.set_trace()
 
             det_tic = time.time()
 
