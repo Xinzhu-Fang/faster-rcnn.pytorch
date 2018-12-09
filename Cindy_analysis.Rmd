@@ -18,17 +18,13 @@ knitr::opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy = TRUE)
 ```
 
 
-```{r}
-a = df4[1,]
-which(a < mean(a))
 
-```
 
 ```{r}
 
 plot_results = function(my_file_name, my_iv, my_net, my_ds){
   df = read.csv(my_file_name)
-  threshold = 0.2
+  # iou_threshold = 0.2
   if(my_iv == 'back_distractor_target'){
     df = read.csv(my_file_name)
     df01 = df %>%
@@ -48,7 +44,7 @@ plot_results = function(my_file_name, my_iv, my_net, my_ds){
     df = cbind(df03, df04, df) 
   }
   df1 = df %>%
-    select(starts_with("iou")) > threshold
+    select(starts_with("iou")) > iou_threshold
   df2 = data.frame(df1)*100
   df3 = df2 %>%
     mutate(iv = df[[my_iv]]) %>%
@@ -81,12 +77,83 @@ plot_results = function(my_file_name, my_iv, my_net, my_ds){
 
 ```
 
+
+```{r}
+get_colors = function(my_file_name, my_iv, my_net, my_ds, my_row){
+  df = read.csv(my_file_name)
+  # iou_threshold = 0.2
+  # sd_threshold = 3
+  if(my_iv == 'back_distractor_target'){
+    df = read.csv(my_file_name)
+    df01 = df %>%
+      select(contains('color')) #back_distractor_target
+    identities = c('back', 'distractor', 'target')
+    df02 = df01
+    for(iI in identities){
+      df02 = unite_(df02, iI, colnames(select(df02, contains(iI))))
+    }
+    df03 = df02
+    for(iC in names(lColor)){
+      df03 = data.frame(lapply(df03, function(x){
+      str_replace(x, lColor[[iC]], iC)
+      }))
+    }
+    df04 = unite_(df03, my_iv, colnames(df03))
+    df = cbind(df03, df04, df) 
+  }
+  df1 = df %>%
+    select(starts_with("iou")) > iou_threshold
+  df2 = data.frame(df1)*100
+  df3 = df2 %>%
+    mutate(iv = df[[my_iv]]) %>%
+    group_by(iv) %>%
+    summarise_all(funs('mean' = mean))
+  # df4 = data.frame(t(df3))
+  # df5 = df4[-1, ]
+  # colnames(df5) = df4[1,]
+  # df5$layer = 1:dim(df1)[2]
+  # df6 = melt(df5, id='layer')
+  df4 = data.frame(t(df3[, -1]))
+  # browser()
+  colnames(df4) = sapply(df3[, 1], as.character)
+  df40 = df4
+  color_mean = rowMeans(df40)
+  color_sd = apply(df40, 1, sd)
+  cur_col = data.frame(matrix(ncol = 1, nrow = 2))
+  colnames(cur_col) = paste0(iN, " trained with ", lDS[[iD]])
+  rownames(cur_col) = c("good_colors", "bad_colors")
+  df41 = colSums(df40 - color_mean - sd_threshold * color_sd > 0) > 0
+  cur_col["good_colors", ]= paste(names(which(df41==TRUE)), collapse =' ')
+  df41 = colSums(color_mean - sd_threshold * color_sd - df40 > 0) > 0
+  cur_col["bad_colors", ]= paste(names(which(df41==TRUE)), collapse =' ')
+  return(cur_col)
+
+
+}
+
+
+```
+
+```{r}
+rm(list=ls())
+# lost lColor code, for now using dput
+lColor = structure(list(black = "0_0_0", white = "255_255_255", red = "255_0_0", 
+    green = "0_255_0", blue = "0_0_255"), .Names = c("black", 
+"white", "red", "green", "blue"))
+lDf_colors = list()
+iou_threshold = 0.2
+sd_threshold = 3
+
+```
+
+
+
 ```{r}
 
-# type = 'circles' # 'gratings' #
-# iv = 'num_item' #'back_distractor_target' #'target_angle' #
+# iT = 'circles' # 'gratings' #
+# iIv = 'back_distractor_target' #'num_item' #'back_distractor_target' #'target_angle' #
 types = c('circles', 'gratings')
-lIV = list(c('num_item', 'back_distractor_target'),
+lIV = list(c('num_item'),
            c('num_item', 'target_angle'))
 names(lIV) = types
 
@@ -95,19 +162,20 @@ datasets = c('pascal_voc', 'vg')
 lDS = c("pascal voc", "visual genome")
 names(lDS) = datasets
 
-types = c('circles')
-
-
 
 for (iT in types){
+  print(iT)
   for (iIv in lIV[[iT]]){
+    print(iIv)
     all_plots = list()
     iP = 1
     for (iN in nets){ # nets will be col
       for (iD in datasets){ # ds will be row
         file_name = file.path('images', paste0('df_', iT, '_', iN, '_', iD, '.csv'))
         all_plots[[iP]] = plot_results(file_name, iIv, iN, iD)
+
         iP = iP + 1
+
         # during testing
         # if(iP == 2){
         #   break
@@ -115,7 +183,10 @@ for (iT in types){
       }
     }
     ggarrange(plotlist = all_plots, common.legend = TRUE, legend = "right")
-    ggsave(paste0(iT, '_', iIv, '.png'))
+    # browser()
+    file_name = paste0(iT, '_', iIv, '.png')
+    print(file_name)
+    ggsave(file_name)
   }
 }
 
@@ -131,6 +202,13 @@ for (iN in nets){ # nets will be col
     file_name = file.path('images', paste0('df_', iT, '_', iN, '_', iD, '.csv'))
     all_plots[[iP]] = plot_results(file_name, iIv, iN, iD)
     iP = iP + 1
+      # if(iP==1){
+      #   df_colors = get_colors(file_name, iIv, iN, iD, iR)
+      # } else{
+      #   df_colors = cbind(df_colors, get_colors(file_name, iIv, iN, iD, iR))
+      # }
+      # lDf_colors[[paste(sd_threshold)]] = df_colors
+    
     # during testing
     # if(iP == 2){
     #   break
@@ -138,12 +216,13 @@ for (iN in nets){ # nets will be col
   }
 }
 ggarrange(plotlist = all_plots)
-# ggsave(paste0(iT, '_', iIv, '.png'))
+ggsave(paste0(iT, '_', iIv, '.png'))
 
 
 ```
 
 ```{r}
+
 
 ```
 
