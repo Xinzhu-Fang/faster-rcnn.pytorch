@@ -4,63 +4,49 @@ output: html_document
 ---
 
 ```{r message=FALSE, warning=FALSE, tidy=TRUE, echo = FALSE}
-    library('knitr')
-
-library(ggplot2)
+library('knitr')
+# library(ggplot2)
 library(dplyr)
 library(ggthemes)
 library(tidyverse)
 library(reshape2)
 library(tidyr)
+library(ggpubr)
 
 
 knitr::opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy = TRUE) 
 ```
 
+
 ```{r}
-multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
-  library(grid)
+a = df4[1,]
+which(a < mean(a))
 
-  # Make a list from the ... arguments and plotlist
-  plots <- c(list(...), plotlist)
-
-  numPlots = length(plots)
-
-  # If layout is NULL, then use 'cols' to determine layout
-  if (is.null(layout)) {
-    # Make the panel
-    # ncol: Number of columns of plots
-    # nrow: Number of rows needed, calculated from # of cols
-    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
-                    ncol = cols, nrow = ceiling(numPlots/cols))
-  }
-
- if (numPlots==1) {
-    print(plots[[1]])
-
-  } else {
-    # Set up the page
-    grid.newpage()
-    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
-
-    # Make each plot, in the correct location
-    for (i in 1:numPlots) {
-      # Get the i,j matrix positions of the regions that contain this subplot
-      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
-
-      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
-                                      layout.pos.col = matchidx$col))
-    }
-  }
-}
 ```
 
-
 ```{r}
 
-plot_results = function(my_file_name, my_iv){
+plot_results = function(my_file_name, my_iv, my_net, my_ds){
   df = read.csv(my_file_name)
   threshold = 0.2
+  if(my_iv == 'back_distractor_target'){
+    df = read.csv(my_file_name)
+    df01 = df %>%
+      select(contains('color')) #back_distractor_target
+    identities = c('back', 'distractor', 'target')
+    df02 = df01
+    for(iI in identities){
+      df02 = unite_(df02, iI, colnames(select(df02, contains(iI))))
+    }
+    df03 = df02
+    for(iC in names(lColor)){
+      df03 = data.frame(lapply(df03, function(x){
+      str_replace(x, lColor[[iC]], iC)
+      }))
+    }
+    df04 = unite_(df03, my_iv, colnames(df03))
+    df = cbind(df03, df04, df) 
+  }
   df1 = df %>%
     select(starts_with("iou")) > threshold
   df2 = data.frame(df1)*100
@@ -68,97 +54,107 @@ plot_results = function(my_file_name, my_iv){
     mutate(iv = df[[my_iv]]) %>%
     group_by(iv) %>%
     summarise_all(funs('mean' = mean))
-  df4 = data.frame(t(df3))
-  df5 = df4[-1, ]
-  colnames(df5) = df4[1,]
-  colnames(df5) = sapply(df4[1,], as.character)
-  df5$layer = 1:dim(df1)[2]
-  df6 = melt(df5, id='layer')
+  # df4 = data.frame(t(df3))
+  # df5 = df4[-1, ]
+  # colnames(df5) = df4[1,]
+  # df5$layer = 1:dim(df1)[2]
+  # df6 = melt(df5, id='layer')
+  df4 = data.frame(t(df3[, -1]))
+  colnames(df4) = sapply(df3[, 1], as.character)
+  df4$layer = 1:dim(df1)[2]
+  df6 = melt(df4, id='layer')
   p = ggplot(df6, aes(layer, value, color=variable)) +
-    geom_line() +
+    geom_line(alpha=0.7) +
     ylab("Percentage correct") +
     ylim(0,100) +
-    xlab("conv_layer") +
-    labs(color= my_iv)
+    xlab("conv block") +
+    ggtitle(paste0(my_net, " trained with ", lDS[[my_ds]])) + 
+    theme(plot.title = element_text(hjust = 0.5))
+  if(my_iv == 'back_distractor_target'){
+    p = p + theme(legend.position="none")
+    # p = p + guides(colour=guide_legend(title = my_iv, nrow = 6, ncol = 10)) 
+  } else{
+    p = p + guides(colour=guide_legend(title = my_iv)) 
+  }
   return(p)
 }
 
 ```
 
-
 ```{r}
-my_file_name = 'images/df_circles_vgg16_pascal_voc.csv'
-my_iv = 'color_combo'
-df = read.csv(my_file_name)
-threshold = 0.2
-df01 = df %>%
-  select(contains('color')) #back_distractor_target
-df02 = unite_(df11, my_iv, colnames(df11))
-df = cbind(df02, df)
-df1 = df %>%
-  select(starts_with("iou")) > threshold
-df2 = data.frame(df1)*100
-df3 = df2 %>%
-  mutate(iv = df[[my_iv]]) %>%
-  group_by(iv) %>%
-  summarise_all(funs('mean' = mean))
-df4 = data.frame(t(df3[, -1]))
-colnames(df4) = sapply(df3[, 1], as.character)
 
+# type = 'circles' # 'gratings' #
+# iv = 'num_item' #'back_distractor_target' #'target_angle' #
+types = c('circles', 'gratings')
+lIV = list(c('num_item', 'back_distractor_target'),
+           c('num_item', 'target_angle'))
+names(lIV) = types
 
-
-df4$layer = 1:dim(df1)[2]
-df6 = melt(df4, id='layer')
-p = ggplot(df6, aes(layer, value, color=variable)) +
-  geom_line() +
-  ylab("Percentage correct") +
-  ylim(0,100) +
-  xlab("conv_layer") +
-  labs(color= my_iv)
-```
-
-
-
-```{r}
-type = 'gratings' # circles #
-iv = 'target_angle' # 'num_item' # 'color_combo'
 nets = c('vgg16', 'res101')
 datasets = c('pascal_voc', 'vg')
+lDS = c("pascal voc", "visual genome")
+names(lDS) = datasets
+
+types = c('circles')
+
+
+
+for (iT in types){
+  for (iIv in lIV[[iT]]){
+    all_plots = list()
+    iP = 1
+    for (iN in nets){ # nets will be col
+      for (iD in datasets){ # ds will be row
+        file_name = file.path('images', paste0('df_', iT, '_', iN, '_', iD, '.csv'))
+        all_plots[[iP]] = plot_results(file_name, iIv, iN, iD)
+        iP = iP + 1
+        # during testing
+        # if(iP == 2){
+        #   break
+        # }
+      }
+    }
+    ggarrange(plotlist = all_plots, common.legend = TRUE, legend = "right")
+    ggsave(paste0(iT, '_', iIv, '.png'))
+  }
+}
+
+```
+
+```{r}
+iT = 'circles'
+iIv = 'back_distractor_target'
 all_plots = list()
 iP = 1
 for (iN in nets){ # nets will be col
   for (iD in datasets){ # ds will be row
-    file_name = file.path('images', paste0('df_', type, '_', iN, '_', iD, '.csv'))
-    all_plots[[iP]] = plot_results(file_name, iv)
+    file_name = file.path('images', paste0('df_', iT, '_', iN, '_', iD, '.csv'))
+    all_plots[[iP]] = plot_results(file_name, iIv, iN, iD)
     iP = iP + 1
     # during testing
-    if(iP == 2){
-      break
-    }
+    # if(iP == 2){
+    #   break
+    # }
   }
 }
+ggarrange(plotlist = all_plots)
+# ggsave(paste0(iT, '_', iIv, '.png'))
 
-multiplot(plotlist = all_plots, cols=length(nets))
+
 ```
-df2$num_item = df$num_item
-# df2 = cbind(df1, df$num_item)
-
-%>%
-  group_by(num_item) %>%
-  summarise_all(funs('mean' = mean))
-num_item_by_layer_mean = df %>%
-  group_by(num_item) %>%
-  summarise_all(funs('mean' = mean))
-
-num_item_by_layer_mean1 = num_item_by_layer_mean %>%
-  rownames_to_column() #%>%
-  # gather(colnames(, va))t 
 
 ```{r}
 
-par(mfrow = c(2, 1))
-p
-p
+```
+
+
+```{r}
+# tg = all_plots
+# ng = all_plots
+# nc = all_plots
+cc = all_plots
+# multiplot(plotlist = ng, cols=length(nets))
+
 ```
 
 
