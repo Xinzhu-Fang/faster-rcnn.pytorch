@@ -9,7 +9,7 @@ from copy import copy
 from sklearn.cluster import MeanShift
 import torch
 
-
+# bb_iou_multi and single gives exxacctly the same result
 def bb_iou_multi(boxes1, boxes2):
     x11, y11, x12, y12 = np.split(boxes1, 4, axis=1)
     x21, y21, x22, y22 = np.split(boxes2, 4, axis=1)
@@ -50,35 +50,20 @@ def bb_iou_single(boxA, boxB):
 
 def tweak_rois(my_rois):
     # rois is a tensor of shape [1,300,5]
-    single_item_radius = 80
-    my_rois = my_rois[0, :, :]
+    single_item_width = 80 # hardcoding
+    num_candiate_box = 100 # hardcoding
+
+    my_rois = my_rois[0, :, 1:]
     num_box = my_rois.shape[0]  # 300
     # if float32 is specified, get error: coordinate list must contain exactly 2 coordinates
-    small_rois = np.ndarray((1, 4), dtype="float32")
-    for iB in range(num_box - 1):
-        if my_rois[iB, 3] - my_rois[iB, 1] < single_item_radius and my_rois[iB, 3] - my_rois[iB, 1] < 80:
-            small_rois = np.vstack((small_rois, my_rois[iB, 1:5]))
+    small_rois = np.ndarray((1,4), dtype="float32")
+    for iB in range(num_candiate_box):
+        if my_rois[iB, 2] - my_rois[iB, 0] < single_item_width and my_rois[iB, 3] - my_rois[iB, 1] < 80:
+            small_rois = np.vstack((small_rois, my_rois[iB, :]))
     if small_rois.shape[0] > 1:
         small_rois = small_rois[1:, :]
     small_rois_centers = (small_rois[:, 0:2] + small_rois[:, 2:4]) / 2
-    b = bb_iou_multi(small_rois, small_rois)
-    c = b.sum(axis=0)
-    d = np.where(c < 2)[0]
-    # d = np.where(c < np.mean(c) - 2 * np.std(c))[0] # use mean and std
-
-    # print(b.shape)
-    # print(c.shape)
-    # print(d.shape)
-
-    # print(np.mean(c))
-    # print(np.std(c))
-
-    # import matplotlib.pyplot as plt
-    # plt.imshow(b);
-    # plt.colorbar()
-    # plt.show()   
-
-    clustering = MeanShift(bandwidth=single_item_radius).fit(small_rois_centers)
+    clustering = MeanShift(bandwidth=single_item_width).fit(small_rois_centers)
     num_clusters = len(set(clustering.labels_))
     mean_clustered_rois = np.zeros((num_clusters, 4), dtype="float32")
     for iC in range(num_clusters):
@@ -95,10 +80,6 @@ def find_the_popout(X):
     num_items = X.shape[0]
     # import pdb; pdb.set_trace()
     # print("shittweak") 
-    # a = torch.sum(X**2, dim= 1)
-    # c = X.t()
-    # b = 2 * X.mm(c)
-    # dists_matrix = (a - b).t() + a
     dists_matrix = (torch.sum(X ** 2, dim=1) - 2 * torch.mm(X, X.t())).t() + torch.sum(X ** 2, dim=1)
     sum_dists_from_others = torch.sum(dists_matrix, dim=0)
     _, popout_index = torch.max(sum_dists_from_others, 0)

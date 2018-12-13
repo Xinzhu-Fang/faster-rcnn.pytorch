@@ -41,7 +41,6 @@ class _fasterRCNN(nn.Module):
         self.RCNN_roi_crop = _RoICrop()
         self.interested_modules = interested_modules
 
-
     def forward(self, im_data, im_info, gt_boxes, num_boxes, pooling_size):
         batch_size = im_data.size(0)
 
@@ -52,11 +51,12 @@ class _fasterRCNN(nn.Module):
         # feed image data to base model to obtain base feature map
         base_feat = self.RCNN_base(im_data)
 
-        #pdb.set_trace()
+        # pdb.set_trace()
         # print("shitrcnn2")
         # feed base feature map tp RPN to obtain rois
         rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
-
+        rois = tweak_rois(rois)
+        # pdb.set_trace()
         if not self.training:
             features = []
             prev_feat = im_data
@@ -75,7 +75,6 @@ class _fasterRCNN(nn.Module):
                 base_feat = iF
                 # import pdb; pdb.set_trace()
                 feature_width = base_feat.size()[2]
-                rois = tweak_rois(rois)
                 self.RCNN_roi_pool = _RoIPooling(pooling_size, pooling_size, 1.0 / (im_info[0][0] / feature_width))
                 self.RCNN_roi_align = RoIAlignAvg(pooling_size, pooling_size, 1.0 / (im_info[0][0] / feature_width))
 
