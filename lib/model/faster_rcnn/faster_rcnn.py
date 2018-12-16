@@ -55,7 +55,8 @@ class _fasterRCNN(nn.Module):
         # print("shitrcnn2")
         # feed base feature map tp RPN to obtain rois
         rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
-        rois = tweak_rois(rois)
+        #pdb.set_trace()
+        #rois = tweak_rois(rois)
         # pdb.set_trace()
         if not self.training:
             features = []
@@ -95,9 +96,10 @@ class _fasterRCNN(nn.Module):
                 # import pdb; pdb.set_trace()
                 # print("shitrcnn1")
 
-                # import pdb; pdb.set_trace()
+                pdb.set_trace()
                 # print("shitrcnn2")
                 pooled_feat = pooled_feat.view(pooled_feat.shape[0], -1)
+                pdb.set_trace()
                 popout_index = find_the_popout(pooled_feat)
                 # import pdb; pdb.set_trace()
                 # print("shitrcnn2")

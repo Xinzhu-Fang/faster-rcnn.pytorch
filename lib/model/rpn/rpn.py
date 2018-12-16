@@ -63,6 +63,7 @@ class _RPN(nn.Module):
         rpn_conv1 = F.relu(self.RPN_Conv(base_feat), inplace=True)
         # get rpn classification score
         rpn_cls_score = self.RPN_cls_score(rpn_conv1)
+        #pdb.set_trace()
 
         rpn_cls_score_reshape = self.reshape(rpn_cls_score, 2)
         rpn_cls_prob_reshape = F.softmax(rpn_cls_score_reshape, 1)
@@ -76,7 +77,7 @@ class _RPN(nn.Module):
 
         rois = self.RPN_proposal((rpn_cls_prob.data, rpn_bbox_pred.data,
                                  im_info, cfg_key))
-        #import pdb; pdb.set_trace()
+        pdb.set_trace()
         #print("shitrpn")
         self.rpn_loss_cls = 0
         self.rpn_loss_box = 0

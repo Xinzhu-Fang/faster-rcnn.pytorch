@@ -50,8 +50,8 @@ def bb_iou_single(boxA, boxB):
 
 def tweak_rois(my_rois):
     # rois is a tensor of shape [1,300,5]
-    single_item_width = 80 # hardcoding
-    num_candiate_box = 100 # hardcoding
+    single_item_width = 80 #600 # hardcoding
+    num_candiate_box = 300 # hardcoding
 
     my_rois = my_rois[0, :, 1:]
     num_box = my_rois.shape[0]  # 300
