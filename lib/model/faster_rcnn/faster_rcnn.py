@@ -96,10 +96,10 @@ class _fasterRCNN(nn.Module):
                 # import pdb; pdb.set_trace()
                 # print("shitrcnn1")
 
-                pdb.set_trace()
+                #pdb.set_trace()
                 # print("shitrcnn2")
                 pooled_feat = pooled_feat.view(pooled_feat.shape[0], -1)
-                pdb.set_trace()
+                #pdb.set_trace()
                 popout_index = find_the_popout(pooled_feat)
                 # import pdb; pdb.set_trace()
                 # print("shitrcnn2")

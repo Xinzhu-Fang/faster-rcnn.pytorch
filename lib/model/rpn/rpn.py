@@ -77,7 +77,7 @@ class _RPN(nn.Module):
 
         rois = self.RPN_proposal((rpn_cls_prob.data, rpn_bbox_pred.data,
                                  im_info, cfg_key))
-        pdb.set_trace()
+        #pdb.set_trace()
         #print("shitrpn")
         self.rpn_loss_cls = 0
         self.rpn_loss_box = 0
