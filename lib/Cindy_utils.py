@@ -75,9 +75,56 @@ def tweak_rois(my_rois):
     # print("shittweak")    
     return mean_clustered_rois
 
+def select_rois(my_rois, my_feat):
+    num_candiate_box = 100 # hardcoding
+    my_rois = my_rois[0, :, 1:]
+    
+    my_rois = my_rois.cpu().numpy()
+    my_feat = my_feat.detach().cpu().numpy()
+    boxes1 = my_rois
+    boxes2 = my_rois
+    x11, y11, x12, y12 = np.split(boxes1, 4, axis=1)
+    x21, y21, x22, y22 = np.split(boxes2, 4, axis=1)
+    xA = np.maximum(x11, np.transpose(x21))
+    yA = np.maximum(y11, np.transpose(y21))
+    xB = np.minimum(x12, np.transpose(x22))
+    yB = np.minimum(y12, np.transpose(y22))
+    overlap = np.stack((xA, yA, xB, yB), axis = 2)
+    isbox1 = np.all(overlap == np.swapaxes(np.repeat(boxes1[:, :, np.newaxis], 300, axis = 2),1,2), axis = 2)
+    # isbox2 = np.all(overlap == np.swapaxes(np.swapaxes(np.repeat(boxes1[:, :, np.newaxis], 300, axis = 2),1,2),0,1), axis = 2)
+    # isanybox = np.logical_or(isbox1, isbox2) 
+    contains_any_other_box = np.sum(isbox1, axis=0) > 1    
+
+    rois_feat_std = np.sum(np.std(my_feat, axis=(2, 3)), axis=1)
+    rois_homo_order_reverse = np.argsort(rois_feat_std * (-1))
+
+    small_rois = np.ndarray((1,4), dtype="float32")
+    for iB in range(num_candiate_box):
+        if (not contains_any_other_box[iB]) &(rois_homo_order_reverse < num_candiate_box):
+            small_rois = np.vstack((small_rois, my_rois[iB, :]))
+    if small_rois.shape[0] > 1:
+        small_rois = small_rois[1:, :]
+        small_rois_centers = (small_rois[:, 0:2] + small_rois[:, 2:4]) / 2
+        
+    largest_width = np.amax(small_rois[:,2] - small_rois[:, 0])
+    largest_height = np.amax(small_rois[:,3] - small_rois[:, 1])
+    single_item_width = np.maximum(largest_width, largest_height)
+    
+    clustering = MeanShift(bandwidth=single_item_width).fit(small_rois_centers)
+    num_clusters = len(set(clustering.labels_))
+    mean_clustered_rois = np.zeros((num_clusters, 4), dtype="float32")
+    for iC in range(num_clusters):
+        mean_clustered_rois[iC] = np.mean(small_rois[np.where(clustering.labels_ == iC)[0], :], axis=0)
+    mean_clustered_rois = torch.from_numpy(
+        np.expand_dims(np.concatenate((np.zeros((1, num_clusters)).T, mean_clustered_rois), axis=1),
+                       axis=0)).float().to('cuda')
+    # import pdb; pdb.set_trace()
+    # print("shittweak")    
+    return mean_clustered_rois
+                
+
 
 def find_the_popout(X):
-    num_items = X.shape[0]
     # import pdb; pdb.set_trace()
     # print("shittweak") 
     dists_matrix = (torch.sum(X ** 2, dim=1) - 2 * torch.mm(X, X.t())).t() + torch.sum(X ** 2, dim=1)
