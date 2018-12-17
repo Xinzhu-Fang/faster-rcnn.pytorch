@@ -56,7 +56,7 @@ class _fasterRCNN(nn.Module):
         # feed base feature map tp RPN to obtain rois
         rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
         #pdb.set_trace()
-        #rois = tweak_rois(rois)
+        rois = tweak_rois(rois)
         # pdb.set_trace()
         if not self.training:
             features = []
