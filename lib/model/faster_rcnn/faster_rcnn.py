@@ -55,11 +55,12 @@ class _fasterRCNN(nn.Module):
         # print("shitrcnn2")
         # feed base feature map tp RPN to obtain rois
         rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
-        #pdb.set_trace()
-        #rois = tweak_rois(rois)
-        rois = select_rois(rois, base_feat)
-        # pdb.set_trace()
+
         if not self.training:
+            #pdb.set_trace()
+            #rois = tweak_rois(rois)
+            rois = select_rois(rois, base_feat)
+            #pdb.set_trace()
             features = []
             prev_feat = im_data
             for i, module in enumerate(self.RCNN_base._modules.values()):
@@ -108,7 +109,8 @@ class _fasterRCNN(nn.Module):
             # import pdb; pdb.set_trace()
             # print("shitrcnn")
             popout_rois = popout_rois[1:, :]
-            return popout_rois
+            rois = rois[0, :, 1:].cpu().numpy()
+            return rois, popout_rois
         else:
 
             # if it is training phrase, then use ground trubut bboxes for refining

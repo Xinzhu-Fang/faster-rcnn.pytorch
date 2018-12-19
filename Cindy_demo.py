@@ -40,6 +40,7 @@ import pandas as pd
 import shutil
 import PIL.Image as Image
 import PIL.ImageDraw as ImageDraw
+import glob
 
 try:
     xrange  # Python 2
@@ -285,18 +286,18 @@ if __name__ == '__main__':
     thresh = 0.05
     vis = True
 
-    webcam_num = args.webcam_num
-    # Set up webcam or get image directories
-    if webcam_num >= 0:
-        cap = cv2.VideoCapture(webcam_num)
-        num_images = 0
+    if args.image_sub_dir == 'others':
+        imglist = glob.glob(args.image_dir + '/' + args.image_sub_dir + '/*.PNG')
+        # imglist = os.listdir(args.image_dir)
+        num_images = len(imglist)
+
     else:
-        #args.image_sub_dir = 'circles'  # 'gratings'  # 'circles'  #   
+        #args.image_sub_dir = 'circles'  # 'gratings'  # 'circles'  #
         dfImages_file = os.path.join(args.image_dir, 'df_' + args.image_sub_dir + '.csv')
         dfImages = pd.read_csv(dfImages_file)
         dfImages_result = dfImages
         num_images = dfImages.shape[0]
-        num_module = len(interested_modules)#7  # popout_rois.shape[0]
+    num_module = len(interested_modules)#7  # popout_rois.shape[0]
 
         # cfg.pooling
 
@@ -305,19 +306,32 @@ if __name__ == '__main__':
         iou_result = np.empty((num_images, num_module))
 
         for iImage in range(num_images):
-            dfImage = dfImages[iImage: iImage + 1]
-            total_tic = time.time()
-            im_file = os.path.join(args.image_dir, args.image_sub_dir, dfImage.iloc[0]['image_file_name'])
-            im_in = np.array(imread(im_file))
-            if len(im_in.shape) == 2:
-                im_in = im_in[:, :, np.newaxis]
-                im_in = np.concatenate((im_in, im_in, im_in), axis=2)
+            if args.image_sub_dir == 'others':
+                im_file = imglist[iImage]
+                # im_file = os.path.join(args.image_dir, imglist[num_images])
+                # im = cv2.imread(im_file)
+                cur_image = os.path.basename(im_file)
+                im_in = np.array(imread(im_file))
+                # remove the alpha channel
+                if im_in.shape[2] == 4:
+                    # convert the image from RGBA2RGB
+                    im_in = cv2.cvtColor(im_in, cv2.COLOR_BGRA2BGR)
+            else:
+                dfImage = dfImages[iImage: iImage + 1]
+                total_tic = time.time()
+                cur_image = dfImage.iloc[0]['image_file_name']
+                im_file = os.path.join(args.image_dir, args.image_sub_dir, cur_image)
+                im_in = np.array(imread(im_file))
+                if len(im_in.shape) == 2:
+                    im_in = im_in[:, :, np.newaxis]
+                    im_in = np.concatenate((im_in, im_in, im_in), axis=2)
             # rgb -> bgr
             im = im_in[:, :, ::-1]
 
             blobs, im_scales = _get_image_blob(im)
             assert len(im_scales) == 1, "Only single-image batch implemented"
             im_blob = blobs
+            #pdb.set_trace()
             im_info_np = np.array([[im_blob.shape[1], im_blob.shape[2], im_scales[0]]], dtype=np.float32)
 
             im_data_pt = torch.from_numpy(im_blob)
@@ -328,47 +342,69 @@ if __name__ == '__main__':
             im_info.data.resize_(im_info_pt.size()).copy_(im_info_pt)
             gt_boxes.data.resize_(1, 1, 5).zero_()
             num_boxes.data.resize_(1).zero_()
-            # pdb.set_trace()
+            pdb.set_trace()
 
             det_tic = time.time()
 
             #popout_rois = (fasterRCNN(im_data, im_info, gt_boxes, num_boxes, iPooling_size)).cpu().numpy()
-            popout_rois = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, iPooling_size)
+            rois, popout_rois = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, iPooling_size)
             #pdb.set_trace()
-            gt_box = np.float32(np.array([dfImage.iloc[0]['target_x'] - dfImage.iloc[0]['item_radius'], dfImage.iloc[0]['target_y'] - dfImage.iloc[0]['item_radius'], dfImage.iloc[0]['target_x'] + dfImage.iloc[0]['item_radius'], dfImage.iloc[0]['target_y'] + dfImage.iloc[0]['item_radius']]))
-
-            #gt_box = np.float32(np.squeeze(gt_box))
-            gt_box = np.repeat(gt_box[np.newaxis, :], num_module, axis=0)
-            #pdb.set_trace()
-            iou_result[iImage, :] = bb_iou_multi(popout_rois, gt_box)[:, 0]
             print(iImage)
-
             image = Image.open(im_file)
-            if 'target_color_r' in dfImage.columns:
-                # pdb.set_trace()
-
-                bb_color = (int(dfImage.iloc[0]['target_color_r']), int(dfImage.iloc[0]['target_color_g']),
-                            int(dfImage.iloc[0]['target_color_b']))
+            if args.image_sub_dir == 'others':
+                bb_color = (0,0,0)
             else:
-                bb_color = (255, 255, 255)
+
+                #pdb.set_trace()
+                gt_box = np.float32(np.array([dfImage.iloc[0]['target_x'] - dfImage.iloc[0]['item_radius'], dfImage.iloc[0]['target_y'] - dfImage.iloc[0]['item_radius'], dfImage.iloc[0]['target_x'] + dfImage.iloc[0]['item_radius'], dfImage.iloc[0]['target_y'] + dfImage.iloc[0]['item_radius']]))
+
+                #gt_box = np.float32(np.squeeze(gt_box))
+                gt_box = np.repeat(gt_box[np.newaxis, :], num_module, axis=0)
+                #pdb.set_trace()
+                iou_result[iImage, :] = bb_iou_multi(popout_rois, gt_box)[:, 0]
+
+                if 'target_color_r' in dfImage.columns:
+                    # pdb.set_trace()
+
+                    bb_color = (int(dfImage.iloc[0]['target_color_r']), int(dfImage.iloc[0]['target_color_g']),
+                                int(dfImage.iloc[0]['target_color_b']))
+                else:
+                    bb_color = (255, 255, 255)
 
             for iM in range(num_module):
-                image_result_dir = args.image_sub_dir + '_' + args.net + '_' + args.dataset + '_conv' + str(iM + 1) + '_poolsize' + str(iPooling_size) 
+                image_result_dir = args.image_sub_dir + '_' + args.net + '_' + args.dataset + '_conv' + str(iM + 1) + '_poolsize' + str(iPooling_size)
                 # at the dir level, image is under module, but in code, module is under image. So check module
                 # for the first image
                 if iImage == 0:
                     if os.path.isdir(os.path.join(args.image_dir, image_result_dir)):
                         shutil.rmtree(os.path.join(args.image_dir, image_result_dir))
                     os.mkdir(os.path.join(args.image_dir, image_result_dir))
-                image0 = copy(image)    
+                image0 = copy(image)
+                image0 = image0.resize((im_blob.shape[1], im_blob.shape[2]))
                 draw = ImageDraw.Draw(image0)
                 draw.rectangle(popout_rois[iM, :], outline=bb_color)
-                im_result_file = os.path.join(args.image_dir, image_result_dir, dfImage.iloc[0]['image_file_name'])
+                im_result_file = os.path.join(args.image_dir, image_result_dir, cur_image)
                 image0.save(im_result_file)
-        for iM in range(num_module):
-            dfImages_result['iou_conv' + str(iM+1) + '_poolsize' + str(iPooling_size)] = iou_result[:, iM]
+                
+            image_rois_dir = args.image_sub_dir + '_' + args.net + '_' + args.dataset
+            if iImage == 0:
+                if os.path.isdir(os.path.join(args.image_dir, image_rois_dir)):
+                    shutil.rmtree(os.path.join(args.image_dir, image_rois_dir))
+                os.mkdir(os.path.join(args.image_dir, image_rois_dir))
+            image0 = copy(image)
+            image0 = image0.resize((im_blob.shape[2], im_blob.shape[1]))
+            draw = ImageDraw.Draw(image0)
+            num_rois = rois.shape[0]
+            for iR in range(num_rois):
+                draw.rectangle(rois[iR, :], outline=bb_color)
+            im_rois_file = os.path.join(args.image_dir, image_rois_dir, cur_image)
+            image0.save(im_rois_file)
+        if not(args.image_sub_dir == 'others'):
+            for iM in range(num_module):
+                dfImages_result['iou_conv' + str(iM+1) + '_poolsize' + str(iPooling_size)] = iou_result[:, iM]
+    if not(args.image_sub_dir == 'others'):
 
-    dfImages_result_file = os.path.join(args.image_dir, 'df_' + args.image_sub_dir + '_' + args.net + '_' + args.dataset + '.csv')
-    dfImages_result.to_csv(dfImages_result_file)
+        dfImages_result_file = os.path.join(args.image_dir, 'df_' + args.image_sub_dir + '_' + args.net + '_' + args.dataset + '.csv')
+        dfImages_result.to_csv(dfImages_result_file)
 
         # pdb.set_trace()

@@ -35,6 +35,7 @@ from model.utils.blob import im_list_to_blob
 from model.faster_rcnn.vgg16 import vgg16
 from model.faster_rcnn.resnet import resnet
 import pdb
+import glob
 
 try:
     xrange          # Python 2
@@ -43,6 +44,7 @@ except NameError:
 
 
 def parse_args():
+  print("shit")
   """
   Parse input arguments
   """
@@ -283,7 +285,8 @@ if __name__ == '__main__':
     cap = cv2.VideoCapture(webcam_num)
     num_images = 0
   else:
-    imglist = os.listdir(args.image_dir)
+    imglist = glob.glob(args.image_dir + '/*.PNG')
+    #imglist = os.listdir(args.image_dir)
     num_images = len(imglist)
 
   print('Loaded Photo: {} images.'.format(num_images))
@@ -302,14 +305,21 @@ if __name__ == '__main__':
         im_in = np.array(frame)
       # Load the demo image
       else:
-        im_file = os.path.join(args.image_dir, imglist[num_images])
+        im_file = imglist[num_images]
+        #im_file = os.path.join(args.image_dir, imglist[num_images])
         # im = cv2.imread(im_file)
         im_in = np.array(imread(im_file))
       if len(im_in.shape) == 2:
         im_in = im_in[:,:,np.newaxis]
         im_in = np.concatenate((im_in,im_in,im_in), axis=2)
+        
+      if im_in.shape[2] == 4:
+        #convert the image from RGBA2RGB
+        im_in = cv2.cvtColor(im_in, cv2.COLOR_BGRA2BGR)
       # rgb -> bgr
       im = im_in[:,:,::-1]
+        
+      pdb.set_trace()
 
       blobs, im_scales = _get_image_blob(im)
       assert len(im_scales) == 1, "Only single-image batch implemented"
@@ -328,13 +338,13 @@ if __name__ == '__main__':
       # pdb.set_trace()
       det_tic = time.time()
 
-      rois, cls_prob, bbox_pred, \
-      rpn_loss_cls, rpn_loss_box, \
-      RCNN_loss_cls, RCNN_loss_bbox, \
-      rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, 8)
+      rois = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, 8)
+    
+      image = Image.open(im_file)
+      bb_color = (0, 0, 0)
 
       scores = cls_prob.data
-      boxes = rois.data[:, :, 1:5]
+      boxes = rois.data[:, :, :]
 
       if cfg.TEST.BBOX_REG:
           # Apply bounding-box regression deltas
