@@ -342,7 +342,7 @@ if __name__ == '__main__':
             im_info.data.resize_(im_info_pt.size()).copy_(im_info_pt)
             gt_boxes.data.resize_(1, 1, 5).zero_()
             num_boxes.data.resize_(1).zero_()
-            pdb.set_trace()
+            #pdb.set_trace()
 
             det_tic = time.time()
 
@@ -351,6 +351,7 @@ if __name__ == '__main__':
             #pdb.set_trace()
             print(iImage)
             image = Image.open(im_file)
+            image = image.resize((im_blob.shape[1], im_blob.shape[2]))
             if args.image_sub_dir == 'others':
                 bb_color = (0,0,0)
             else:
@@ -380,7 +381,7 @@ if __name__ == '__main__':
                         shutil.rmtree(os.path.join(args.image_dir, image_result_dir))
                     os.mkdir(os.path.join(args.image_dir, image_result_dir))
                 image0 = copy(image)
-                image0 = image0.resize((im_blob.shape[1], im_blob.shape[2]))
+                image0 = image0.resize((im_blob.shape[2], im_blob.shape[1]))
                 draw = ImageDraw.Draw(image0)
                 draw.rectangle(popout_rois[iM, :], outline=bb_color)
                 im_result_file = os.path.join(args.image_dir, image_result_dir, cur_image)
